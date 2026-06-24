@@ -1,37 +1,56 @@
-import pandas as pd
+"""
+AAPL SMA Crossover Strategy — Demonstration Script
+====================================================
+Downloads 5 years of Apple (AAPL) price data from Yahoo Finance, applies a
+20/50-day simple moving average crossover strategy, then evaluates the result
+with the Backtest class.
+
+Strategy logic:
+    - Signal = +1 (long)  when the 20-day SMA crosses above the 50-day SMA.
+    - Signal = -1 (out)   when the 20-day SMA crosses below the 50-day SMA.
+
+Backtest metrics printed:
+    - Total strategy return vs buy-and-hold
+    - Annualised Sharpe ratio (risk-free rate = 0, 252 trading days assumed)
+    - Maximum drawdown
+    - Win rate (% of active trading days with a positive return)
+    - Transaction costs of 0.1% per signal change are baked into returns.
+"""
+
 import yfinance as yf
-import datetime as dt
-import momentum
-import moving_avg
-import sma
-import volitility
+from moving_avg import compute_sma_signals
+from backtest import Backtest
 
-# -----------------------------
-# Settings
-# -----------------------------
-ticker = "AAPL"
-start_date = "2020-01-01"
-end_date = "2025-01-01"
+# --- Configuration ---
+TICKER = "AAPL"
+START = "2020-01-01"
+END = "2025-01-01"
+SHORT_WINDOW = 20   # fast SMA lookback (days)
+LONG_WINDOW = 50    # slow SMA lookback (days)
 
-df = yf.download(ticker, start=start_date, end=end_date)
+# Download historical price data
+print(f"Downloading {TICKER} data from {START} to {END}...")
+raw = yf.download(TICKER, start=START, end=END, progress=False)
 
-# -----------------------------
-print(momentum.calculate_momentum(df, [5,10]))
+# Compute SMA crossover signals
+df = compute_sma_signals(raw, short_window=SHORT_WINDOW, long_window=LONG_WINDOW)
 
-"""
-tickers = ['SPY', 'QQQ']
-end_date = dt.datetime.fromisocalendar(2025, 1, 2)
-start_date = end_date - dt.timedelta(days = 393)
-print("From: " + str(start_date))
-print("To: " + str(end_date))
+# Run the backtest and collect metrics
+bt = Backtest(df)
+metrics = bt.run()
 
-data = {}
+# Print a formatted summary table
+print(f"\n{'=' * 46}")
+print(f"  Backtest: {TICKER}  |  {START} → {END}")
+print(f"  Strategy: SMA {SHORT_WINDOW}/{LONG_WINDOW} Crossover")
+print(f"{'=' * 46}")
+for key, value in metrics.items():
+    label = key.replace("_", " ").title()
+    if key in ("total_return", "buy_and_hold_return", "max_drawdown", "win_rate"):
+        print(f"  {label:<26} {value:>8.2%}")
+    else:
+        print(f"  {label:<26} {value:>8.4f}")
+print(f"{'=' * 46}\n")
 
-for ticker in tickers:
-    x = yf.download(ticker, start=start_date, end=end_date)
-    data[ticker]= x
-    data[ticker]['AVG'] = (data[ticker]['Open'] + data[ticker]['Close'] ) / 2
-    data[ticker]['SMA_20']=data[ticker]['AVG'].rolling(window=20).mean()
-    data[ticker] = data[ticker].drop(data[ticker].index[0:19])
-print(data)
-"""
+# Display cumulative-returns and drawdown charts
+bt.plot_results()
