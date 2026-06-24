@@ -19,9 +19,10 @@ Backtest metrics printed:
 """
 
 import yfinance as yf
-from moving_avg import compute_sma_signals
+from moving_avg import compute_sma_signals, plot_sma_signals, plot_cumulative_returns
 from backtest import Backtest
 from momentum import calculate_all_features, ML_FEATURES
+from volatility import compute_all_volatility_features, VOL_FEATURES
 
 # --- Configuration ---
 TICKER = "AAPL"
@@ -54,10 +55,19 @@ for key, value in metrics.items():
         print(f"  {label:<26} {value:>8.4f}")
 print(f"{'=' * 46}\n")
 
-# Display cumulative-returns and drawdown charts
+# Display SMA signal chart and cumulative-returns comparison
+plot_sma_signals(df, ticker=TICKER, short_window=SHORT_WINDOW, long_window=LONG_WINDOW)
+plot_cumulative_returns(df)
+
+# Display backtest drawdown chart
 bt.plot_results()
 
 # --- Momentum features ---
 print("Computing momentum features...")
-feat_df = calculate_all_features(raw.copy())
-print(f"\nMomentum features (last 5 rows):\n{feat_df[ML_FEATURES].tail()}\n")
+mom_df = calculate_all_features(raw.copy())
+print(f"\nMomentum features (last 5 rows):\n{mom_df[ML_FEATURES].tail()}\n")
+
+# --- Volatility features ---
+print("Computing volatility features...")
+vol_df = compute_all_volatility_features(raw.copy())
+print(f"\nVolatility features (last 5 rows):\n{vol_df[VOL_FEATURES].tail()}\n")

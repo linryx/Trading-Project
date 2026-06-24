@@ -69,18 +69,18 @@ def compute_strategy_returns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-if __name__ == "__main__":
-    ticker = "AAPL"
-    start_date = "2020-01-01"
-    end_date = "2025-01-01"
-    short_window = 20
-    long_window = 50
+def plot_sma_signals(
+    data: pd.DataFrame, ticker: str = "", short_window: int = 20, long_window: int = 50
+) -> None:
+    """Plot closing price with SMA lines and buy/sell crossover markers.
 
-    raw = yf.download(ticker, start=start_date, end=end_date)
-    data = compute_sma_signals(raw, short_window, long_window)
-    data = compute_strategy_returns(data)
-
-    # --- Plot 1: Price with SMA lines and crossover markers ---
+    Args:
+        data: DataFrame with 'Close', 'SMA_Short', 'SMA_Long', and 'Position' columns
+              (output of compute_sma_signals).
+        ticker: Ticker symbol used only in the chart title.
+        short_window: Fast SMA period — used in the legend label.
+        long_window: Slow SMA period — used in the legend label.
+    """
     plt.figure(figsize=(14, 7))
     plt.plot(data["Close"], label="Close Price", alpha=0.7)
     plt.plot(data["SMA_Short"], label=f"{short_window}-Day SMA")
@@ -98,14 +98,22 @@ if __name__ == "__main__":
         marker="v", color="red", s=100, label="Sell"
     )
 
-    plt.title(f"{ticker} SMA Trading Strategy")
+    title = f"{ticker} SMA Trading Strategy" if ticker else "SMA Trading Strategy"
+    plt.title(title)
     plt.xlabel("Date")
     plt.ylabel("Price")
     plt.legend()
     plt.grid(True)
     plt.show()
 
-    # --- Plot 2: Cumulative returns ---
+
+def plot_cumulative_returns(data: pd.DataFrame) -> None:
+    """Plot strategy cumulative returns vs buy-and-hold on the same axes.
+
+    Args:
+        data: DataFrame with 'Cumulative_Market' and 'Cumulative_Strategy' columns
+              (output of compute_strategy_returns).
+    """
     print("\nFinal Performance:")
     print(f"Market Return:   {data['Cumulative_Market'].iloc[-1]:.2f}x")
     print(f"Strategy Return: {data['Cumulative_Strategy'].iloc[-1]:.2f}x")
@@ -119,3 +127,18 @@ if __name__ == "__main__":
     plt.legend()
     plt.grid(True)
     plt.show()
+
+
+if __name__ == "__main__":
+    ticker = "AAPL"
+    start_date = "2020-01-01"
+    end_date = "2025-01-01"
+    short_window = 20
+    long_window = 50
+
+    raw = yf.download(ticker, start=start_date, end=end_date)
+    data = compute_sma_signals(raw, short_window, long_window)
+    data = compute_strategy_returns(data)
+
+    plot_sma_signals(data, ticker=ticker, short_window=short_window, long_window=long_window)
+    plot_cumulative_returns(data)
