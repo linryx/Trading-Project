@@ -3,7 +3,8 @@ AAPL SMA Crossover Strategy — Demonstration Script
 ====================================================
 Downloads 5 years of Apple (AAPL) price data from Yahoo Finance, applies a
 20/50-day simple moving average crossover strategy, then evaluates the result
-with the Backtest class.
+with the Backtest class.  Momentum features are also computed and printed as
+an example of the momentum module's importable functions.
 
 Strategy logic:
     - Signal = +1 (long)  when the 20-day SMA crosses above the 50-day SMA.
@@ -20,6 +21,7 @@ Backtest metrics printed:
 import yfinance as yf
 from moving_avg import compute_sma_signals
 from backtest import Backtest
+from momentum import calculate_all_features, ML_FEATURES
 
 # --- Configuration ---
 TICKER = "AAPL"
@@ -54,3 +56,8 @@ print(f"{'=' * 46}\n")
 
 # Display cumulative-returns and drawdown charts
 bt.plot_results()
+
+# --- Momentum features ---
+print("Computing momentum features...")
+feat_df = calculate_all_features(raw.copy())
+print(f"\nMomentum features (last 5 rows):\n{feat_df[ML_FEATURES].tail()}\n")
