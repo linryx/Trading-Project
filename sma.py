@@ -32,7 +32,8 @@ if __name__ == "__main__":
 
     for i in range(len(data)-1):
         data.at[data.index[i], 'Signal'] = data['hold'].iloc[i] != data['hold'].iloc[i+1]
-        if ('Signal' == 1 and 'hold' == 1):
-            print(data['price'])
+        # Fixed: compare actual column values, not string literals
+        if (data.at[data.index[i], 'Signal'] == True and data['hold'].iloc[i] == True):
+            print(data['Close'].iloc[i])  # Fixed: 'price' column doesn't exist
             
     #print(data[['SMA_20','SMA_100','hold','Signal']])

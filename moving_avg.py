@@ -1,84 +1,101 @@
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
-if __name__ == "__main__":
-    # -----------------------------
-    # Settings
-    # -----------------------------
-    ticker = "AAPL"
-    start_date = "2020-01-01"
-    end_date = "2025-01-01"
 
-    short_window = 20
-    long_window = 50
 
-    # -----------------------------
-    # Download data
-    # -----------------------------
-    data = yf.download(ticker, start=start_date, end=end_date)
+def compute_sma_signals(
+    df: pd.DataFrame, short_window: int = 20, long_window: int = 50
+) -> pd.DataFrame:
+    """Compute SMA crossover trading signals.
 
-    # Keep only adjusted close price
-    data = data[["Close"]].copy()
-    # -----------------------------
-    # Calculate moving averages
-    # -----------------------------
+    Signal convention:
+         1  = Long  (short SMA is above long SMA)
+        -1  = Out   (short SMA is below long SMA)
+         0  = No position (insufficient history)
+
+    Position column tracks crossovers:
+        +2  = buy crossover  (signal changed from -1 to +1)
+        -2  = sell crossover (signal changed from +1 to -1)
+
+    Args:
+        df: DataFrame with a 'Close' column.
+        short_window: Lookback period for the fast SMA (default 20).
+        long_window: Lookback period for the slow SMA (default 50).
+
+    Returns:
+        New DataFrame containing 'Close', 'SMA_Short', 'SMA_Long',
+        'Signal', and 'Position' columns.
+    """
+    data = df[["Close"]].copy()
+
     data["SMA_Short"] = data["Close"].rolling(window=short_window).mean()
     data["SMA_Long"] = data["Close"].rolling(window=long_window).mean()
 
-    # -----------------------------
-    # Generate trading signals
-    # -----------------------------
-    # 1 = Buy
-    # -1 = Sell
-    # 0 = Hold
-
     data["Signal"] = 0
+    # Long when the fast average is above the slow average
+    data.loc[data["SMA_Short"] > data["SMA_Long"], "Signal"] = 1
+    # Out (or short) when the fast average is below the slow average
+    data.loc[data["SMA_Short"] < data["SMA_Long"], "Signal"] = -1
 
-    data.loc[
-        data["SMA_Short"] > data["SMA_Long"],
-        "Signal"
-    ] = 1
-
-    data.loc[
-        data["SMA_Short"] < data["SMA_Long"],
-        "Signal"
-    ] = -1
-
-    # Generate position changes
+    # Diff of the signal column: non-zero entries are crossover events
     data["Position"] = data["Signal"].diff()
 
-    # -----------------------------
-    # Plot results
-    # -----------------------------
+    return data
+
+
+def compute_strategy_returns(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute daily and cumulative strategy returns vs buy-and-hold.
+
+    Signal is shifted by one day to avoid lookahead bias — we can only act
+    on a signal after the close at which it was generated.
+
+    Args:
+        df: DataFrame with 'Close' and 'Signal' columns
+            (typically the output of compute_sma_signals).
+
+    Returns:
+        DataFrame with 'Market_Return', 'Strategy_Return',
+        'Cumulative_Market', and 'Cumulative_Strategy' columns added.
+    """
+    df = df.copy()
+    df["Market_Return"] = df["Close"].pct_change()
+
+    # Use previous day's signal so we don't trade on future information
+    df["Strategy_Return"] = df["Market_Return"] * df["Signal"].shift(1)
+
+    df["Cumulative_Market"] = (1 + df["Market_Return"]).cumprod()
+    df["Cumulative_Strategy"] = (1 + df["Strategy_Return"]).cumprod()
+
+    return df
+
+
+if __name__ == "__main__":
+    ticker = "AAPL"
+    start_date = "2020-01-01"
+    end_date = "2025-01-01"
+    short_window = 20
+    long_window = 50
+
+    raw = yf.download(ticker, start=start_date, end=end_date)
+    data = compute_sma_signals(raw, short_window, long_window)
+    data = compute_strategy_returns(data)
+
+    # --- Plot 1: Price with SMA lines and crossover markers ---
     plt.figure(figsize=(14, 7))
-
-    # Price
     plt.plot(data["Close"], label="Close Price", alpha=0.7)
-
-    # Moving averages
     plt.plot(data["SMA_Short"], label=f"{short_window}-Day SMA")
     plt.plot(data["SMA_Long"], label=f"{long_window}-Day SMA")
 
-    # Buy signals
     buy_signals = data[data["Position"] == 2]
     plt.scatter(
-        buy_signals.index,
-        buy_signals["Close"],
-        marker="^",
-        color="green",
-        s=100,
-        label="Buy"
+        buy_signals.index, buy_signals["Close"],
+        marker="^", color="green", s=100, label="Buy"
     )
 
-    # Sell signals
     sell_signals = data[data["Position"] == -2]
     plt.scatter(
-        sell_signals.index,
-        sell_signals["Close"],
-        marker="v",
-        color="red",
-        s=100,
-        label="Sell"
+        sell_signals.index, sell_signals["Close"],
+        marker="v", color="red", s=100, label="Sell"
     )
 
     plt.title(f"{ticker} SMA Trading Strategy")
@@ -86,50 +103,19 @@ if __name__ == "__main__":
     plt.ylabel("Price")
     plt.legend()
     plt.grid(True)
-
     plt.show()
 
-    # -----------------------------
-    # Strategy Returns
-    # -----------------------------
-    data["Market_Return"] = data["Close"].pct_change()
-
-    # Shift signal to avoid lookahead bias
-    data["Strategy_Return"] = (
-        data["Market_Return"] * data["Signal"].shift(1)
-    )
-
-    # Cumulative returns
-    data["Cumulative_Market"] = (
-        1 + data["Market_Return"]
-    ).cumprod()
-
-    data["Cumulative_Strategy"] = (
-        1 + data["Strategy_Return"]
-    ).cumprod()
-
-    # Print performance
+    # --- Plot 2: Cumulative returns ---
     print("\nFinal Performance:")
     print(f"Market Return:   {data['Cumulative_Market'].iloc[-1]:.2f}x")
     print(f"Strategy Return: {data['Cumulative_Strategy'].iloc[-1]:.2f}x")
 
-    # Plot cumulative returns
     plt.figure(figsize=(14, 7))
-
-    plt.plot(
-        data["Cumulative_Market"],
-        label="Buy & Hold"
-    )
-
-    plt.plot(
-        data["Cumulative_Strategy"],
-        label="SMA Strategy"
-    )
-
+    plt.plot(data["Cumulative_Market"], label="Buy & Hold")
+    plt.plot(data["Cumulative_Strategy"], label="SMA Strategy")
     plt.title("Strategy vs Buy & Hold")
     plt.xlabel("Date")
     plt.ylabel("Growth of $1")
     plt.legend()
     plt.grid(True)
-
     plt.show()
