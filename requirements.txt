@@ -1,4 +1,4 @@
-pandas
-numpy
-yfinance
-matplotlib
+pandas>=2.0
+numpy>=1.26
+yfinance>=0.2
+matplotlib>=3.8
