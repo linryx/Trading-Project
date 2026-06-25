@@ -54,7 +54,7 @@ def calculate_log_momentum(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_price_vs_ma(
-    df: pd.DataFrame, windows: List[int] = [20, 50]
+    df: pd.DataFrame, windows=None
 ) -> pd.DataFrame:
     """Compute price-relative-to-MA ratios and the spread between MAs.
 
@@ -68,6 +68,8 @@ def calculate_price_vs_ma(
     Returns:
         DataFrame with 'ma_{w}', 'price_vs_ma{w}', and 'ma_spread' columns added.
     """
+    if windows is None:
+        windows = [20, 50]
     for w in windows:
         df[f"ma_{w}"] = df["Close"].rolling(w).mean()
         df[f"price_vs_ma{w}"] = df["Close"] / df[f"ma_{w}"]
@@ -99,7 +101,7 @@ def calculate_cross_sectional_rank(prices_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_risk_adjusted_momentum(
-    df: pd.DataFrame, mom_window: int = 20, vol_windows: List[int] = [20, 60]
+    df: pd.DataFrame, mom_window: int = 20, vol_windows=None
 ) -> pd.DataFrame:
     """Compute momentum normalised by rolling volatility.
 
@@ -116,8 +118,11 @@ def calculate_risk_adjusted_momentum(
         DataFrame with 'mom_{mom_window}d', 'vol_{w}d' for each w, and
         'risk_adj_mom' columns added.
     """
+    if vol_windows is None:
+        vol_windows = [20, 60]
     log_ret = np.log(df["Close"] / df["Close"].shift(1))
-    df[f"mom_{mom_window}d"] = df["Close"].pct_change(mom_window)
+    if f"mom_{mom_window}d" not in df.columns:
+        df[f"mom_{mom_window}d"] = df["Close"].pct_change(mom_window)
 
     for w in vol_windows:
         df[f"vol_{w}d"] = log_ret.rolling(w).std()
@@ -168,7 +173,7 @@ def add_ml_target(df: pd.DataFrame, forward_days: int = 5) -> pd.DataFrame:
 
 
 def calculate_all_features(
-    df: pd.DataFrame, periods: List[int] = [5, 20, 60]
+    df: pd.DataFrame, periods=None
 ) -> pd.DataFrame:
     """Run all momentum feature functions in sequence and add an ML target.
 
@@ -181,6 +186,8 @@ def calculate_all_features(
     Returns:
         DataFrame with all momentum, volatility, and signal columns added.
     """
+    if periods is None:
+        periods = [5, 20, 60]
     df = calculate_momentum(df, periods)
     df = calculate_log_momentum(df)
     df = calculate_price_vs_ma(df, windows=[20, 50])

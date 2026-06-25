@@ -19,7 +19,7 @@ Backtest metrics printed:
 """
 
 import yfinance as yf
-from moving_avg import compute_sma_signals, plot_sma_signals, plot_cumulative_returns
+from moving_avg import compute_sma_signals, compute_strategy_returns, plot_sma_signals, plot_cumulative_returns
 from backtest import Backtest
 from momentum import calculate_all_features, ML_FEATURES
 from volatility import compute_all_volatility_features, VOL_FEATURES
@@ -37,6 +37,7 @@ raw = yf.download(TICKER, start=START, end=END, progress=False)
 
 # Compute SMA crossover signals
 df = compute_sma_signals(raw, short_window=SHORT_WINDOW, long_window=LONG_WINDOW)
+df = compute_strategy_returns(df)
 
 # Run the backtest and collect metrics
 bt = Backtest(df)

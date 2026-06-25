@@ -1,3 +1,5 @@
+# NOTE: This module uses the Open/Close midpoint (AVG) as the SMA input, unlike moving_avg.py
+# which uses Close. This is intentional — the midpoint smooths intraday noise for longer-term scans.
 import pandas as pd
 import yfinance as yf
 import datetime as dt
@@ -58,7 +60,7 @@ def filter_to_year(
     """
     start = dt.datetime(year, 1, 1)
     end = dt.datetime(year, 12, 31)
-    df = df[(df.index > start) & (df.index < end)].copy()
+    df = df[(df.index >= start) & (df.index <= end)].copy()
     df = df.drop(df.index[:warm_up_rows])
     return df
 
@@ -84,10 +86,7 @@ def detect_crossover_signals(
     """
     df = df.copy()
     df['hold'] = df[short_col] > df[long_col]
-    df['Signal'] = False
-
-    for i in range(len(df) - 1):
-        df.at[df.index[i], 'Signal'] = df['hold'].iloc[i] != df['hold'].iloc[i + 1]
+    df['Signal'] = df['hold'] != df['hold'].shift(1)
 
     return df
 
@@ -101,9 +100,8 @@ def print_buy_signals(df: pd.DataFrame) -> None:
     Args:
         df: DataFrame with 'Close', 'hold', and 'Signal' columns.
     """
-    for i in range(len(df) - 1):
-        if df['Signal'].iloc[i] and df['hold'].iloc[i]:
-            print(df['Close'].iloc[i])
+    buys = df[df['Signal'] & df['hold']]
+    print(buys['Close'].to_string())
 
 
 if __name__ == "__main__":

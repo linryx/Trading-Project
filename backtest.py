@@ -38,7 +38,7 @@ class Backtest:
         self.df = df.copy()
         self._results: Dict[str, float] = {}
 
-    def _compute_strategy_returns(self) -> pd.Series:
+    def _compute_strategy_returns(self, market_return: pd.Series) -> pd.Series:
         """Compute daily strategy returns with transaction costs.
 
         Signal is shifted one day forward to prevent lookahead bias.
@@ -47,8 +47,6 @@ class Backtest:
         Returns:
             Series of daily net strategy returns.
         """
-        market_return = self.df["Close"].pct_change()
-
         # Lag the signal so we can only trade on the *next* day's open
         position = self.df["Signal"].shift(1)
 
@@ -72,7 +70,7 @@ class Backtest:
             Dict mapping metric name to float value.
         """
         market_returns = self.df["Close"].pct_change()
-        strategy_returns = self._compute_strategy_returns()
+        strategy_returns = self._compute_strategy_returns(market_returns)
 
         # Cumulative wealth curves (start at $1)
         cum_strategy = (1 + strategy_returns).cumprod()
